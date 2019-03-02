@@ -1,0 +1,4 @@
+https://github.com/HotKeyIt/TT
+https://github.com/GregRos/AhkUtility
+https://github.com/GregRos/_Struct
+https://github.com/cocobelgica/AutoHotkey-JSON.git
