@@ -2,7 +2,7 @@
 
 _Version=0.8.0
 
-#include <Yaml>
+#include <JSON>
 #include <_Struct>
 #include <sizeof>
 #include <TT>
@@ -132,7 +132,7 @@ class LayoutTree
     FromJson(jsonText)
     {
         tree := new LayoutTree()
-        data:= Yaml(jsonText, 0)
+        data:= JSON.Load(jsonText, 0)
         bindings := data.bindings
         for key, entry in bindings 
         {
@@ -150,9 +150,9 @@ class LayoutTree
     }
 }
 
-IfNotExist, Layout.yaml
+IfNotExist, Layout.json
 {
-    FileInstall, Layout.yaml, Layout.yaml
+    FileInstall, Layout.json, Layout.json
 }
 
 FileRead, jsonText, *P65001 Layout.json ;65001 is the UTF-8 codepage.    
@@ -466,7 +466,7 @@ PrepareTooltipMenu()
         Run https://github.com/GregRos/CommandKeyboard
         return
     Mappings:
-        Run https://raw.githubusercontent.com/GregRos/CommandKeyboard/master/Layout.yaml
+        Run https://raw.githubusercontent.com/GregRos/CommandKeyboard/master/Layout.json
         return
     ToggleAutoStart:
         if (IsAutoStart) 
