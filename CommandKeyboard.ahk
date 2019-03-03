@@ -1,7 +1,6 @@
 ﻿#SingleInstance Force
 
 _Version=0.8.0
-
 #include <JSON>
 #include <_Struct>
 #include <sizeof>
@@ -252,13 +251,7 @@ ParseCommandKey()
     DisplayInfo()
 }
 
-AutoComplete()
-{
-    if (nodeNamespace.Children.Count() = 1)
-    {
-        
-    }
-}
+
 
 #if isInCommandMode
 #if
