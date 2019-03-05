@@ -466,7 +466,7 @@ DisplayInfo()
 ;Menu and GUI-related code
 ;---------------------------------------------
 global IsAutoStart:=FileExist(AutoStartShortcutPath)
-global AutoStartShortcutPath:=A_Startup "\Command Keyboard.lnk"
+global AutoStartShortcutPath:=A_Startup "\UnicodeInput.lnk"
 PrepareIcon() 
 {
     IfExist, Images\icon.ico
@@ -481,7 +481,7 @@ PrepareTooltipMenu()
     global _version
     Menu, Tray, DeleteAll
     Menu, Tray, NoStandard
-    Menu, Tray, Tip, Command Keyboard! v%_version%
+    Menu, Tray, Tip, UnicodeInput! v%_version%
     Menu, Tray, Add, Help!, HelpMe
     Menu, Tray, Add, View Mappings, Mappings 
     Menu, Tray, Add, Auto Start, ToggleAutoStart
@@ -494,10 +494,10 @@ PrepareTooltipMenu()
     }
     return
     HelpMe:
-        Run https://github.com/GregRos/CommandKeyboard
+        Run https://github.com/GregRos/UnicodeInput
         return
     Mappings:
-        Run https://raw.githubusercontent.com/GregRos/CommandKeyboard/master/Layout.json
+        Run https://raw.githubusercontent.com/GregRos/UnicodeInput/master/Layout.json
         return
     ToggleAutoStart:
         if (IsAutoStart) 
