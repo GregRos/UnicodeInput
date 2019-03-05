@@ -454,8 +454,8 @@ DisplayInfo()
     } 
     else
     {
-        hasValue := nodeNamespace.Value <> "" ? ">" : ""
-        title := hasValue nsNode.Keyword
+        hasValue := nodeNamespace.Value <> "" ? "> " : ""
+        title := hasValue nodeNamespace.Keyword
         title := title == "" ? "Info" : title
         InfoTooltip(text, title)
     }
