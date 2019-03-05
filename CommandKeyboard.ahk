@@ -12,6 +12,7 @@ Struct(Structure,pointer:=0,init:=0){
     return new _Struct(Structure,pointer,init)
 } 
 
+SendMode, Input
 ; ================================
 ; Settings and Strings
 ; ================================
@@ -31,7 +32,6 @@ global intWarningTooltipTime := -1
 
 global strLastChar := ""
 
-
 global strNamespace := ""
 global strCurrentKeyword := ""
 
@@ -40,10 +40,24 @@ global isInCommandMode := false
 global arrKeyPrematureTerminators := ["F1"
     ,"F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12"
     ,"Up","Down","Left","Right","PgDn","PgUp","End","Home","Insert","Delete"
-    ,"Tab","!Tab","Escape","LWin","RWin",
+    ,"!Tab","Escape","LWin","RWin",
     ,"AppsKey", "LButton"
     , "RButton"]
-    
+
+global keyAutoCompleteKey := "Tab"
+
+NodeToString(namespace, keyword)
+{
+    if (namespace == "")
+    {
+        return keyword
+    }
+    else
+    {
+        parString := NodeToString(namespace.Parent, namespace.Keyword)
+        return parString <> "" ? parString "." keyword : keyword
+    }
+}
 
 class LayoutTree
 {
@@ -83,12 +97,11 @@ class LayoutTree
         {
             get
             {
-                parString := this.Parent.ToString
-                return parString <> "" ? parString "." this.Keyword : this.Keyword
+                return NodeToString(this.Parent, this.Keyword)
             }
         }
     }
-    
+
     __New() 
     {
         this.Root := new LayoutTree.Node("", "", "")
@@ -215,25 +228,58 @@ TerminateKeyword()
     return
 }
 
-; Called when the command terminator is used to resolve a command.
-ExecuteCommand() 
+ReplaceLastCharactersWith(typedLength, replacement) 
 {
-    CloseKeyword()
-    result := nodeNamespace.Value
-    totalLen := nodeNamespace.TotalLength
-    SendInput, {backspace %totalLen%}
+    ; I've found this implementation to be a lot better than {backspace n}. This way
+    ; makes a single modification to the text, instead of multiple modifications. Some
+    ; programs take time to register each modification.
+    
+    ; However, it does require modern caret controls.
+    Send, {Shift down}{Left %typedLength%}{Shift up}
+    if (typedLength == 0) 
+    {
+        return
+    }
+    else if (replacement == "") 
+    {
+        Send, {backspace}
+    }
+    else 
+    {
+        Send, % replacement
+    }
+}
+
+ReplaceCommandString(replacement)
+{
+    str := NodeToString(nodeNamespace, strCurrentKeyword)
+    totalLen := StrLen(str)
+    ReplaceLastCharactersWith(totalLen, replacement)
+}
+
+ExecuteCurrentCommand() 
+{
+    selected := nodeNamespace.FindNode(RTrim(strCurrentKeyword, "."))
+    ExecuteCommand(selected)
+}
+
+; Called when the command terminator is used to resolve a command.
+ExecuteCommand(node) 
+{
+    result := node.Value
+    ReplaceCommandString(result)
     if (result == "")
     {
         ErrorTooltip("Not found: " strNamespace)
     }
     else
     {
-        SendInput, % result
         RemoveTooltip()
     }
     ExitCommandMode()
 }
 
+; Enter command mode.
 InputCommand() 
 {
     DisplayInfo()
@@ -242,52 +288,49 @@ InputCommand()
 
 CannotErase() 
 {
-    
+    ; An empty function that gets called when attempting to backspace
+    ; something that should not be erased.
 }
-    
+
+; When a key is pressed in command mode, this will parse its affect on
+; the selected command.
 ParseCommandKey() 
 {
     strCurrentKeyword := strCurrentKeyword Utils.Hotkey.HotkeyName()
     DisplayInfo()
 }
 
-
-
-#if isInCommandMode
-#if
-Hotkey, If, isInCommandMode
-Loop, % 127 - 33
+; Get the completions of the current command.
+GetEligibleCommands() 
 {
-    RealIndex := A_Index + 33
-    c:=Chr(RealIndex)
-    if (c != ".")
+    data := []
+    nsNode := nodeNamespace
+    for key, node in nsNode.Children
     {
-        if c is upper 
-            HotKey, ~+%c%, ParseCommandKey
-        else 
-            HotKey, ~%c%, ParseCommandKey
+        node := nsNode.Children.item(key)
+        if (!Utils.String.StartsWith(key, strCurrentKeyword, true))
+        {
+            continue
+        }
+        data.Insert(node)
+    }
+    return data
+}
+
+AutoComplete() 
+{
+    eligible := GetEligibleCommands()
+    fst := eligible[1]
+    if (fst.Value != "") 
+    {
+        ExecuteCommand(fst)
+    }
+    else
+    {
+        strCurrentKeyword := fst.Value
     }
 }
 
-for ix, key in arrKeyPrematureTerminators
-{
-    Hotkey, %key%, NavigatedAway
-}
-#if isInCommandMode && (StrLen(strCurrentKeyword) == 0 && !nodeNamespace.Parent)
-#if isInCommandMode && (StrLen(strCurrentKeyword) > 0 || nodeNamespace.Parent)
-
-#if 
-
-Hotkey, $Space, ExecuteCommand
-Hotkey, Enter, ExecuteCommand
-Hotkey, ~., TerminateKeyword
-
-Hotkey, If, isInCommandMode && (StrLen(strCurrentKeyword) > 0 || nodeNamespace.Parent)
-Hotkey, ~Backspace, EraseCommandCharacter
-
-Hotkey, If, isInCommandMode && (StrLen(strCurrentKeyword) == 0 && !nodeNamespace.Parent)
-Hotkey, Backspace, CannotErase
-Hotkey, If
 
 ;==============================================
 ;Tooltip Rendering Code
@@ -296,7 +339,6 @@ Hotkey, If
 CoordMode, Caret, Screen
 global myTip := TT("Icon=2 Theme NoFade", "", "Results")
 myTip.Font("S11, Consolas")
-
 myTip.Color("080E81", "F0F1FE")
 
 InfoTooltip(text, title) 
@@ -310,6 +352,7 @@ WarningTooltip(text)
 {
     myTip.Title("Warning")
     myTip.Icon(2)
+
     MyTooltip(text, intWarningTooltipTime)
 }
 
@@ -385,19 +428,14 @@ MakeTable(rows, spacings, maxRows)
     return text
 }
 
-; Performs an Input call using the settings used in this script.
-
+; Displays the tooltip
 DisplayInfo() 
 {
     data := []
-    nsNode := nodeNamespace
-    for key, node in nsNode.Children
+    results := GetEligibleCommands()
+    for n, node in results
     {
-        node := nsNode.Children.item(key)
-        if (!Utils.String.StartsWith(key, strCurrentKeyword, true))
-        {
-            continue
-        }
+        key := node.ToString
         count := node.Children.Count()
         infoBox := ""
         infoBox .= count = 0 ? " " : "+"
@@ -416,7 +454,7 @@ DisplayInfo()
     } 
     else
     {
-        hasValue := nsNode.Value <> "" ? ">" : ""
+        hasValue := nodeNamespace.Value <> "" ? ">" : ""
         title := hasValue nsNode.Keyword
         title := title == "" ? "Info" : title
         InfoTooltip(text, title)
@@ -477,12 +515,65 @@ PrepareTooltipMenu()
 }
 PrepareTooltipMenu()
 
+
+#if isInCommandMode
+#if
+Hotkey, If, isInCommandMode
+Loop, % 127 - 33
+{
+    RealIndex := A_Index + 33
+    c:=Chr(RealIndex)
+    if (c != ".")
+    {
+        if c is upper 
+            HotKey, ~+%c%, ParseCommandKey
+        else 
+            HotKey, ~%c%, ParseCommandKey
+    }
+}
+
+for ix, key in arrKeyPrematureTerminators
+{
+    Hotkey, %key%, NavigatedAway
+}
+
+; These are needed to register the predicates for use in the
+; dynamic Hotkey command.
+#if isInCommandMode && (StrLen(strCurrentKeyword) == 0 && !nodeNamespace.Parent)
+#if isInCommandMode && (StrLen(strCurrentKeyword) > 0 || nodeNamespace.Parent)
+
+#if 
+
+; Execute command on Space.
+Hotkey, Space, ExecuteCurrentCommand
+; Execute command on Enter.
+Hotkey, Enter, ExecuteCurrentCommand
+
+; Terminate the current keyword and also type a . 
+Hotkey, ~., TerminateKeyword
+
+; If we're in command mode and there is a command char to erase, erase the command char
+; and also emit the original backspace.
+Hotkey, If, isInCommandMode && (StrLen(strCurrentKeyword) > 0 || nodeNamespace.Parent)
+Hotkey, ~Backspace, EraseCommandCharacter
+
+; If we're in command mode but there is no command char to erase, then backspace
+; is a noop.
+Hotkey, If, isInCommandMode && (StrLen(strCurrentKeyword) == 0 && !nodeNamespace.Parent)
+Hotkey, Backspace, CannotErase
+Hotkey, If
+
 ;==============================================
 ;Active hotstring definition
 ;---------------------------------------------
 #if !isInCommandMode
-:*?:````::
+!`::
     InputCommand()
     return
 #if
+#if isInCommandMode
+Tab::
+    AutoComplete()
+#if
+
 
