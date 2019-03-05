@@ -2,6 +2,7 @@
 
 _Version=0.8.0
 #include <JSON>
+#include Lib/
 #include <_Struct>
 #include <sizeof>
 #include <TT>
@@ -575,5 +576,3 @@ Hotkey, If
 Tab::
     AutoComplete()
 #if
-
-
