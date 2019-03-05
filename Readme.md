@@ -58,3 +58,6 @@ This script has some prerequisites that aren't included in the repo. To download
 https://github.com/GregRos/dumb.sh/blob/master/dumb.sh
 
 And run it in the script's folder. This will pull the dependencies and generate a Lib folder. Then you can run the script.
+
+## Future
+I'm honestly pretty tired of AHK and I don't think I'll ever use it again for anything other than stupid simple macros.
